@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Glauka | Solar Oracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Unica+One&family=Space+Grotesk:wght@300;400&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            obsidian: "#05060b",
+            midnight: "#0a0f24",
+            auric: "#f6c86a",
+            ember: "#ffb347",
+            saffron: "#ff9f1c",
+            indigo: "#0f172a"
+          },
+          fontFamily: {
+            display: ["Cinzel", "Unica One", "Space Grotesk", "sans-serif"],
+            body: ["Space Grotesk", "Inter", "system-ui", "sans-serif"]
+          },
+          animation: {
+            "spin-slowest": "spin 110s linear infinite",
+            "spin-slower": "spin 65s linear infinite",
+            "spin-orbit": "spin 38s linear infinite",
+            "pulse-soft": "pulseSoft 6s ease-in-out infinite",
+            "float": "float 9s ease-in-out infinite",
+            "ripple": "ripple 7s ease-out infinite",
+            "typeflow": "typeflow 14s linear infinite"
+          },
+          dropShadow: {
+            auric: "0 0 16px rgba(255,191,105,0.28)"
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #05060b;
+      --bg-veil: radial-gradient(circle at 20% 20%, rgba(29, 29, 63, 0.38), transparent 35%),
+                 radial-gradient(circle at 80% 60%, rgba(255, 191, 105, 0.08), transparent 35%),
+                 radial-gradient(circle at 40% 80%, rgba(255, 159, 28, 0.08), transparent 25%);
+      --glass: rgba(14, 17, 33, 0.65);
+      --border: rgba(255, 191, 105, 0.16);
+      --glow: 0 0 40px rgba(255, 159, 28, 0.12);
+      --font-display: "Cinzel", "Unica One", "Space Grotesk", system-ui, sans-serif;
+      --font-body: "Space Grotesk", "Inter", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: #fdf5e6;
+      font-family: var(--font-body);
+      letter-spacing: 0.01em;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: var(--bg-veil);
+      filter: blur(24px);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .glass {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--glow);
+      backdrop-filter: blur(14px) saturate(140%);
+    }
+    .auric-ring {
+      background: radial-gradient(circle, rgba(246, 200, 106, 0.22) 0%, rgba(5, 6, 11, 0) 65%);
+    }
+    .oracle-mask {
+      mask-image: radial-gradient(circle at 50% 40%, rgba(255,255,255,1), rgba(255,255,255,0.08));
+    }
+    @keyframes pulseSoft {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.04); opacity: 1; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+    }
+    @keyframes ripple {
+      0% { transform: scale(0.95); opacity: 0.3; }
+      80% { transform: scale(1.2); opacity: 0; }
+      100% { opacity: 0; }
+    }
+    @keyframes typeflow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .terminal-stream span {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(8px);
+      animation: rise 1.8s ease forwards;
+    }
+    .terminal-stream span:nth-child(odd) { animation-delay: 0.08s; }
+    @keyframes rise {
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useEffect, useRef, useState } = React;
+
+    const glyphs = [
+      { label: "🜂", hint: "Ignite scan" },
+      { label: "👁", hint: "Owl eye / observe" },
+      { label: "✦", hint: "Pulse sweep" },
+      { label: "🜔", hint: "Access key" },
+      { label: "⌾", hint: "Node map" },
+      { label: "✺", hint: "Solar flare" },
+      { label: "🜍", hint: "Transmute data" },
+      { label: "⚷", hint: "Unlock vector" }
+    ];
+
+    const streamSeeds = [
+      "Σ Aligning auric lattice…",
+      "Ψ Listening for surface echoes…",
+      "Θ Solar winds parsed; signal harmonized.",
+      "Φ Deep scan coils waking…",
+      "Ω Keyhole formed; ingress permitted.",
+      "λ Golden ratio lock engaged.",
+      "ζ Silent watch invoked.",
+      "Ϟ Saffron threads weaving packet routes.",
+      "☉ Scrying pool murmurs…",
+      "δ Resonant subdomain signature located.",
+      "μ Ports breathe in triads: 22 / 80 / 443.",
+      "κ Null obelisks mapped; anomalies marked."
+    ];
+
+    function SacredGeometry() {
+      return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 auric-ring blur-2xl"></div>
+          <svg className="absolute inset-0 w-full h-full animate-spin-slowest" viewBox="0 0 1200 1200" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="golden" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgba(246,200,106,0.4)" />
+                <stop offset="50%" stopColor="rgba(255,179,71,0.2)" />
+                <stop offset="100%" stopColor="rgba(246,200,106,0.08)" />
+              </linearGradient>
+            </defs>
+            {[160, 280, 420, 560].map((r, idx) => (
+              <circle
+                key={r}
+                cx="600"
+                cy="600"
+                r={r}
+                fill="none"
+                stroke="url(#golden)"
+                strokeWidth={idx === 0 ? 1.5 : 1}
+                strokeDasharray="6 18"
+                opacity={0.45 - idx * 0.07}
+                className={idx % 2 === 0 ? "animate-spin-slower" : ""}
+              />
+            ))}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const angle = (i / 12) * Math.PI * 2;
+              const x1 = 600 + Math.cos(angle) * 180;
+              const y1 = 600 + Math.sin(angle) * 180;
+              const x2 = 600 + Math.cos(angle + Math.PI / 6) * 520;
+              const y2 = 600 + Math.sin(angle + Math.PI / 6) * 520;
+              return (
+                <line
+                  key={i}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="url(#golden)"
+                  strokeWidth="0.8"
+                  opacity="0.35"
+                />
+              );
+            })}
+            <path
+              d="M600 160 Q920 320 600 520 Q280 720 600 1040"
+              fill="none"
+              stroke="url(#golden)"
+              strokeWidth="1.6"
+              strokeDasharray="12 10"
+              opacity="0.4"
+            />
+          </svg>
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo/30 via-transparent to-amber-500/5 mix-blend-screen"></div>
+        </div>
+      );
+    }
+
+    function OrbitRing({ radius, glyphSet, duration, offset = 0 }) {
+      return (
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ animation: `spin ${duration}s linear infinite`, animationDelay: `-${offset}s` }}
+        >
+          <div className="relative" style={{ width: radius * 2, height: radius * 2 }}>
+            <div className="absolute inset-0 rounded-full border border-amber-300/15"></div>
+            {glyphSet.map((glyph, idx) => {
+              const angle = (idx / glyphSet.length) * Math.PI * 2;
+              const x = Math.cos(angle) * radius + radius;
+              const y = Math.sin(angle) * radius + radius;
+              return (
+                <div
+                  key={glyph.label + idx}
+                  className="absolute w-14 h-14 glass flex items-center justify-center rounded-full text-lg text-amber-100 shadow-[0_0_24px_rgba(246,200,106,0.25)]"
+                  style={{
+                    left: x - 28,
+                    top: y - 28,
+                    transform: "translateZ(0)",
+                    backdropFilter: "blur(18px)",
+                  }}
+                  title={glyph.hint}
+                >
+                  <span className="drop-shadow-auric">{glyph.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function TerminalStream() {
+      const [lines, setLines] = useState(streamSeeds.slice(0, 4));
+      const idxRef = useRef(4);
+
+      useEffect(() => {
+        const id = setInterval(() => {
+          idxRef.current = (idxRef.current + 1) % streamSeeds.length;
+          setLines((prev) => {
+            const next = [...prev, streamSeeds[idxRef.current]];
+            return next.slice(-10);
+          });
+        }, 2000);
+        return () => clearInterval(id);
+      }, []);
+
+      return (
+        <div className="relative glass oracle-mask text-sm text-amber-100/90 px-5 py-5 leading-relaxed shadow-[0_0_30px_rgba(0,0,0,0.35)]">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-amber-300/5 opacity-60 rounded-2xl pointer-events-none"></div>
+          <div className="absolute -inset-x-16 -inset-y-10 bg-[radial-gradient(circle_at_50%_20%,rgba(255,191,105,0.25),rgba(5,6,11,0))] blur-3xl opacity-70"></div>
+          <div className="relative space-y-2 terminal-stream">
+            {lines.map((line, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className="text-amber-400/70 mt-0.5">◎</span>
+                <span className="whitespace-pre-wrap">{line}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function AmbientChime({ active, onToggle }) {
+      return (
+        <button
+          onClick={onToggle}
+          className={`glass px-4 py-2 rounded-full text-xs tracking-[0.18em] uppercase ${active ? "text-amber-200" : "text-amber-300/70"} shadow-[0_0_24px_rgba(246,200,106,0.18)]`}
+        >
+          {active ? "◉ Resonance" : "◌ Resonance"}
+        </button>
+      );
+    }
+
+    function App() {
+      const [ambient, setAmbient] = useState(false);
+      const audioRef = useRef(null);
+
+      useEffect(() => {
+        if (!ambient) {
+          if (audioRef.current?.osc) {
+            audioRef.current.osc.stop();
+            audioRef.current.ctx.close();
+            audioRef.current = null;
+          }
+          return;
+        }
+        if (typeof AudioContext === "undefined") return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        osc.type = "sine";
+        osc.frequency.value = 84;
+        filter.type = "lowpass";
+        filter.frequency.value = 420;
+        gain.gain.value = 0.02;
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        audioRef.current = { ctx, osc };
+        return () => {
+          osc.stop();
+          ctx.close();
+          audioRef.current = null;
+        };
+      }, [ambient]);
+
+      return (
+        <div className="relative min-h-screen overflow-hidden bg-[#04060f] text-amber-50">
+          <SacredGeometry />
+
+          <main className="relative z-10 flex flex-col lg:flex-row gap-8 px-6 md:px-10 py-10">
+            <section className="flex-1 relative">
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-8 rounded-full border border-amber-400/10 animate-pulse-soft"></div>
+                <div className="absolute inset-16 rounded-full border border-amber-400/5 animate-ripple"></div>
+              </div>
+
+              <div className="relative mx-auto w-full max-w-5xl aspect-square flex items-center justify-center">
+                <div className="absolute inset-8">
+                  <OrbitRing radius={220} glyphSet={glyphs.slice(0, 4)} duration={48} />
+                  <OrbitRing radius={320} glyphSet={glyphs.slice(4)} duration={62} offset={12} />
+                </div>
+
+                <div className="relative glass rounded-full w-64 h-64 flex items-center justify-center shadow-[0_0_60px_rgba(246,200,106,0.28)] animate-float">
+                  <div className="absolute inset-2 rounded-full border border-amber-300/25"></div>
+                  <div className="absolute inset-6 rounded-full blur-3xl bg-amber-300/15"></div>
+                  <div className="text-center space-y-2">
+                    <div className="text-amber-300 text-sm tracking-[0.4em] uppercase">Glauka</div>
+                    <div className="text-4xl font-display text-amber-100 drop-shadow-auric">☉</div>
+                    <div className="text-xs text-amber-200/70 tracking-[0.24em]">Solar Reconnaissance</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside className="w-full lg:w-[420px] space-y-4">
+              <div className="flex items-center justify-between">
+                <AmbientChime active={ambient} onToggle={() => setAmbient((v) => !v)} />
+                <div className="glass px-4 py-2 rounded-full text-xs text-amber-200/80 tracking-[0.28em]">Scan: Oracle</div>
+              </div>
+
+              <div className="relative glass p-5 rounded-[24px] shadow-[0_0_45px_rgba(0,0,0,0.45)]">
+                <div className="absolute -left-6 top-12 w-12 h-12 rounded-full bg-amber-300/15 blur-xl"></div>
+                <div className="absolute -right-10 bottom-6 w-16 h-16 rounded-full bg-amber-400/12 blur-2xl"></div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-amber-200 tracking-[0.3em] uppercase text-xs">Scrying Pool</div>
+                  <div className="text-amber-100 text-sm">⌁</div>
+                </div>
+                <TerminalStream />
+              </div>
+
+              <div className="glass rounded-[18px] p-4 flex items-center gap-4 text-sm text-amber-200/80">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400/30 to-amber-200/10 flex items-center justify-center text-2xl drop-shadow-auric">🜁</div>
+                <div>
+                  <div className="uppercase tracking-[0.28em] text-xs text-amber-300">Modules</div>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {["Subdomain", "Ports", "LFI", "SQLi", "Redirects", "Screens"].map((mod, idx) => (
+                      <span key={mod} className="px-3 py-1 rounded-full text-xs glass text-amber-100/90">
+                        {glyphs[idx % glyphs.length].label} {mod}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
