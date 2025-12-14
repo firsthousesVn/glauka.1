@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 import random
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox
@@ -129,16 +130,33 @@ class GlaukaApp(tk.Tk):
         self._build_ui()
 
     def _build_ui(self):
+        self._build_background()
+        main_container = self._build_main_container()
+        self._build_control_frame(main_container)
+        content_wrapper = self._build_content_wrapper(main_container)
+        self._build_panels_area(content_wrapper)
+        self._build_terminal(content_wrapper)
+        self._build_status_bar(main_container)
+
+    def _build_background(self):
         self.bg_canvas = GeometricBackground(self)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
 
-        main_container = tk.Frame(self, bg=BG_BLACK)
-        main_container.place(relx=0.02, rely=0.02, relwidth=0.96, relheight=0.96)
+    def _build_main_container(self) -> tk.Frame:
+        container = tk.Frame(self, bg=BG_BLACK)
+        container.place(relx=0.02, rely=0.02, relwidth=0.96, relheight=0.96)
+        return container
 
-        control_frame = tk.Frame(main_container, bg=BG_BLACK, height=100)
+    def _build_control_frame(self, parent: tk.Widget) -> None:
+        control_frame = tk.Frame(parent, bg=BG_BLACK, height=100)
         control_frame.pack(fill="x", pady=(0, 10))
         control_frame.pack_propagate(False)
 
+        self._build_title_block(control_frame)
+        self._build_input_block(control_frame)
+        self._build_action_buttons(control_frame)
+
+    def _build_title_block(self, control_frame: tk.Widget) -> None:
         title_frame = tk.Frame(control_frame, bg=BG_BLACK)
         title_frame.pack(side="left", padx=20, pady=10)
 
@@ -152,26 +170,25 @@ class GlaukaApp(tk.Tk):
         self.main_symbol.pack(side="left", padx=(0, 15))
         self._animate_main_symbol()
 
-        title_label = tk.Label(
+        tk.Label(
             title_frame,
             text="GLAUKA",
             bg=BG_BLACK,
             fg=GOLD_BRIGHT,
             font=FONT_TITLE,
-        )
-        title_label.pack(side="left")
+        ).pack(side="left")
 
+    def _build_input_block(self, control_frame: tk.Widget) -> None:
         input_frame = tk.Frame(control_frame, bg=BG_BLACK)
         input_frame.pack(side="left", expand=True, padx=30)
 
-        input_label = tk.Label(
+        tk.Label(
             input_frame,
             text="TARGET:",
             bg=BG_BLACK,
             fg=GOLD_MEDIUM,
             font=("Consolas", 10, "bold"),
-        )
-        input_label.pack(anchor="w")
+        ).pack(anchor="w")
 
         self.target_input = tk.Entry(
             input_frame,
@@ -184,9 +201,9 @@ class GlaukaApp(tk.Tk):
         )
         self.target_input.pack(fill="x", pady=(5, 0))
 
-        input_line = tk.Frame(input_frame, bg=GOLD_BRIGHT, height=2)
-        input_line.pack(fill="x")
+        tk.Frame(input_frame, bg=GOLD_BRIGHT, height=2).pack(fill="x")
 
+    def _build_action_buttons(self, control_frame: tk.Widget) -> None:
         btn_frame = tk.Frame(control_frame, bg=BG_BLACK)
         btn_frame.pack(side="right", padx=20)
 
@@ -199,9 +216,12 @@ class GlaukaApp(tk.Tk):
         clear_btn = self._create_button(btn_frame, "ƒ-O\nCLEAR", self._clear_all)
         clear_btn.pack(side="left", padx=5)
 
-        content_wrapper = tk.Frame(main_container, bg=BG_BLACK)
+    def _build_content_wrapper(self, parent: tk.Widget) -> tk.Frame:
+        content_wrapper = tk.Frame(parent, bg=BG_BLACK)
         content_wrapper.pack(fill="both", expand=True)
+        return content_wrapper
 
+    def _build_panels_area(self, content_wrapper: tk.Widget) -> None:
         panels_frame = tk.Frame(content_wrapper, bg=BG_BLACK)
         panels_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
@@ -220,6 +240,13 @@ class GlaukaApp(tk.Tk):
             panel.update_content(placeholder)
             self.panels[title] = panel
 
+        self.panel_scope = self.panels["Scope"]
+        self.panel_signal = self.panels["DNS Records"]
+        self.panel_subdomains = self.panels["Subdomains"]
+        self.panel_ports = self.panels["Open Ports"]
+        self.panel_vulns = self.panels["Attack Vectors"]
+
+    def _build_terminal(self, content_wrapper: tk.Widget) -> None:
         terminal_frame = tk.Frame(content_wrapper, bg=GOLD_BRIGHT, width=350)
         terminal_frame.pack(side="right", fill="both", padx=(10, 0))
         terminal_frame.pack_propagate(False)
@@ -252,12 +279,12 @@ class GlaukaApp(tk.Tk):
         self.terminal_widget.pack(fill="both", expand=True, padx=10, pady=10)
         self.terminal_widget.config(state="disabled")
 
-        status_frame = tk.Frame(main_container, bg=BG_BLACK, height=30)
+    def _build_status_bar(self, parent: tk.Widget) -> None:
+        status_frame = tk.Frame(parent, bg=BG_BLACK, height=30)
         status_frame.pack(fill="x", pady=(10, 0))
         status_frame.pack_propagate(False)
 
-        status_line = tk.Frame(status_frame, bg=GOLD_DIM, height=1)
-        status_line.pack(fill="x", pady=(0, 10))
+        tk.Frame(status_frame, bg=GOLD_DIM, height=1).pack(fill="x", pady=(0, 10))
 
         self.status_dot = tk.Canvas(status_frame, width=15, height=15, bg=BG_BLACK, highlightthickness=0)
         self.status_dot.pack(side="left", padx=10)
@@ -272,12 +299,6 @@ class GlaukaApp(tk.Tk):
             font=("Consolas", 10),
         )
         self.status_label.pack(side="left", padx=10)
-
-        self.panel_scope = self.panels["Scope"]
-        self.panel_signal = self.panels["DNS Records"]
-        self.panel_subdomains = self.panels["Subdomains"]
-        self.panel_ports = self.panels["Open Ports"]
-        self.panel_vulns = self.panels["Attack Vectors"]
 
     def _create_button(self, parent, text, command):
         btn_frame = tk.Frame(parent, bg=GOLD_BRIGHT)
@@ -330,7 +351,6 @@ class GlaukaApp(tk.Tk):
         try:
             self.status_dot.delete("all")
             colors = [GOLD_BRIGHT, GOLD_INTENSE]
-            import time
 
             color = colors[int(time.time() * 2) % 2]
             self.status_dot.create_oval(2, 2, 13, 13, fill=color, outline=GOLD_INTENSE, width=2)

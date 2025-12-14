@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+import tempfile
 from typing import Callable, List, Tuple
 from urllib.parse import urlparse
 
@@ -165,121 +166,130 @@ def nuclei_scan(
         log("[Nuclei] Not installed, skipping scan.")
         return "[!] Nuclei is not installed on this system."
 
-    targets_file = Path("nuclei_targets.txt")
+    targets_file: Path | None = None
     try:
-        targets_file.write_text("\n".join(sorted(set(safe_urls))), encoding="utf-8")
-    except Exception as e:
-        log(f"[Nuclei] Failed to write targets file: {e}")
-        return "[!] Failed to write nuclei_targets.txt"
-
-    template_dirs = _prepare_template_dirs(templates or [], log, auto_update=update_templates)
-    c_auto, rl_auto, host_count = _dynamic_nuclei_limits(safe_urls)
-    c = str(concurrency or c_auto)
-    rl = str(rate_limit or rl_auto)
-    log(f"[Nuclei] Target hosts: ~{host_count}; using -c {c}, -rl {rl}. Override via config.modules.nuclei.")
-    if host_count > 40 and concurrency is None:
-        log("[Nuclei] Tip: set modules.nuclei.concurrency/rate_limit to tune speed for large scopes.")
-
-    def _clean_csv(value: str | None) -> str:
-        parts = []
-        for part in (value or "").split(","):
-            p = part.strip()
-            if p:
-                parts.append(p)
-        return ",".join(parts)
-
-    severity_selected = _clean_csv(severities) or "medium,high,critical"
-    tag_filter = _clean_csv(tags)
-    etag_filter = _clean_csv(exclude_tags)
-
-    cmd = [
-        "nuclei",
-        "-l", str(targets_file),
-        "-severity", severity_selected,
-        "-silent",
-        "-nc",
-        "-c", c,
-        "-rl", rl,
-    ]
-    if tag_filter:
-        cmd.extend(["-tags", tag_filter])
-        log(f"[Nuclei] Applying tag focus: {tag_filter} (clear modules.nuclei.tags to broaden).")
-    if etag_filter and not disable_exclude_tags:
-        cmd.extend(["-etags", etag_filter])
-        log(f"[Nuclei] Excluding tags: {etag_filter} (set disable_exclude_tags=true to disable).")
-    for tdir in template_dirs:
-        cmd.extend(["-t", tdir])
-
-    log("[Nuclei] Running nuclei scan...")
-
-    start = time.monotonic()
-    timeout_seconds = 1200
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as tmp:
+            tmp.write("\n".join(sorted(set(safe_urls))))
+            targets_file = Path(tmp.name)
+    except Exception as exc:
+        log(f"[Nuclei] Failed to write targets file: {exc}")
+        return "[!] Failed to write nuclei targets file."
 
     try:
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-    except Exception as e:
-        log(f"[Nuclei] Failed to start: {e}")
-        return f"[!] Nuclei failed to start: {e}"
+        template_dirs = _prepare_template_dirs(templates or [], log, auto_update=update_templates)
+        c_auto, rl_auto, host_count = _dynamic_nuclei_limits(safe_urls)
+        c = str(concurrency or c_auto)
+        rl = str(rate_limit or rl_auto)
+        log(f"[Nuclei] Target hosts: ~{host_count}; using -c {c}, -rl {rl}. Override via config.modules.nuclei.")
+        if host_count > 40 and concurrency is None:
+            log("[Nuclei] Tip: set modules.nuclei.concurrency/rate_limit to tune speed for large scopes.")
 
-    lines: List[str] = []
-    malformed = 0
-    try:
-        while True:
-            if proc.stdout is None:
-                break
-            line = proc.stdout.readline()
-            if line:
-                line = line.rstrip("\n")
-                lines.append(line)
-                if " @ None" in line or "@ None" in line:
-                    malformed += 1
-                if verbose:
-                    log(f"[Nuclei] {line}")
-                if progress_cb:
-                    try:
-                        progress_cb("finding", line)
-                    except Exception:
-                        pass
-            elif proc.poll() is not None:
-                break
+        def _clean_csv(value: str | None) -> str:
+            parts = []
+            for part in (value or "").split(","):
+                p = part.strip()
+                if p:
+                    parts.append(p)
+            return ",".join(parts)
 
-            if time.monotonic() - start > timeout_seconds:
-                log("[Nuclei] Global timeout reached; terminating.")
+        severity_selected = _clean_csv(severities) or "medium,high,critical"
+        tag_filter = _clean_csv(tags)
+        etag_filter = _clean_csv(exclude_tags)
+
+        cmd = [
+            "nuclei",
+            "-l", str(targets_file),
+            "-severity", severity_selected,
+            "-silent",
+            "-nc",
+            "-c", c,
+            "-rl", rl,
+        ]
+        if tag_filter:
+            cmd.extend(["-tags", tag_filter])
+            log(f"[Nuclei] Applying tag focus: {tag_filter} (clear modules.nuclei.tags to broaden).")
+        if etag_filter and not disable_exclude_tags:
+            cmd.extend(["-etags", etag_filter])
+            log(f"[Nuclei] Excluding tags: {etag_filter} (set disable_exclude_tags=true to disable).")
+        for tdir in template_dirs:
+            cmd.extend(["-t", tdir])
+
+        log("[Nuclei] Running nuclei scan...")
+
+        start = time.monotonic()
+        timeout_seconds = 1200
+
+        try:
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+        except Exception as e:
+            log(f"[Nuclei] Failed to start: {e}")
+            return f"[!] Nuclei failed to start: {e}"
+
+        lines: List[str] = []
+        malformed = 0
+        try:
+            while True:
+                if proc.stdout is None:
+                    break
+                line = proc.stdout.readline()
+                if line:
+                    line = line.rstrip("\n")
+                    lines.append(line)
+                    if " @ None" in line or "@ None" in line:
+                        malformed += 1
+                    if verbose:
+                        log(f"[Nuclei] {line}")
+                    if progress_cb:
+                        try:
+                            progress_cb("finding", line)
+                        except Exception:
+                            pass
+                elif proc.poll() is not None:
+                    break
+
+                if time.monotonic() - start > timeout_seconds:
+                    log("[Nuclei] Global timeout reached; terminating.")
+                    proc.kill()
+                    return "[!] Nuclei scan timed out."
+
+                time.sleep(0.05)
+
+            try:
+                if proc.stderr:
+                    stderr = proc.stderr.read().strip()
+                    if stderr:
+                        last_err = stderr.splitlines()[-1]
+                        log(f"[Nuclei] stderr: {last_err}")
+            except Exception:
+                pass
+            rc = proc.poll()
+            if rc not in (0, None):
+                log(f"[Nuclei] Exited with code {rc}")
+
+        except Exception as e:
+            log(f"[Nuclei] Error during scan: {e}")
+            try:
                 proc.kill()
-                return "[!] Nuclei scan timed out."
+            except Exception:
+                pass
+            return f"[!] Nuclei error: {e}"
 
-            time.sleep(0.05)
+        if not lines:
+            log("[Nuclei] Empty output; filters or template coverage may be too restrictive.")
+            return "Nuclei completed. No vulnerabilities reported at selected severities/tags."
 
-        try:
-            if proc.stderr:
-                stderr = proc.stderr.read().strip()
-                if stderr:
-                    last_err = stderr.splitlines()[-1]
-                    log(f"[Nuclei] stderr: {last_err}")
-        except Exception:
-            pass
-        rc = proc.poll()
-        if rc not in (0, None):
-            log(f"[Nuclei] Exited with code {rc}")
+        if malformed:
+            log(f"[Nuclei] Detected {malformed} malformed result lines (missing target).")
 
-    except Exception as e:
-        log(f"[Nuclei] Error during scan: {e}")
-        try:
-            proc.kill()
-        except Exception:
-            pass
-        return f"[!] Nuclei error: {e}"
-
-    if not lines:
-        log("[Nuclei] Empty output; filters or template coverage may be too restrictive.")
-        return "Nuclei completed. No vulnerabilities reported at selected severities/tags."
-
-    if malformed:
-        log(f"[Nuclei] Detected {malformed} malformed result lines (missing target).")
-
-    return "\n".join(lines)
+        return "\n".join(lines)
+    finally:
+        if targets_file:
+            try:
+                targets_file.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 def summarize_nuclei_output(text: str) -> str:

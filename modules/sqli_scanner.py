@@ -10,7 +10,7 @@ from typing import Dict, List
 
 from glauka.core.models import ReconContext
 
-REPORT_PATH = Path("reports") / "active_findings.json"
+REPORT_PATH = Path("reports") / "active_findings.jsonl"
 
 
 class SqlInjectionModule:
@@ -59,9 +59,6 @@ class SqlInjectionModule:
         finally:
             if target_file.exists():
                 target_file.unlink()
-
-        if not REPORT_PATH.exists():
-            REPORT_PATH.write_text("", encoding="utf-8")
 
         ctx.log("[Module] sqli_scanner complete")
 

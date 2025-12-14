@@ -10,30 +10,13 @@ import time
 import tkinter as tk
 
 # --- LOGIC IMPORTS ---
-# Try package import first; if it fails, patch sys.path for repo-local execution.
+# Keep imports deterministic; if the scan runner isn't available, the UI will degrade gracefully.
 SCAN_RUNNER_IMPORT_ERROR: Exception | None = None
 try:
     from glauka.ui.scan_runner import run_scan_async
 except Exception as exc:
-    SCAN_RUNNER_IMPORT_ERROR = exc
-    import importlib
-    import sys
-    from pathlib import Path
-
-    _pkg_root = Path(__file__).resolve().parents[2]  # repo root containing the glauka package
-    _pkg_dir = Path(__file__).resolve().parent.parent  # glauka/
-    for _p in (str(_pkg_root), str(_pkg_dir)):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
     run_scan_async = None
-    for _mod in ("glauka.ui.scan_runner", "ui.scan_runner"):
-        try:
-            run_scan_async = importlib.import_module(_mod).run_scan_async  # type: ignore[attr-defined]
-            SCAN_RUNNER_IMPORT_ERROR = None
-            break
-        except Exception as exc2:
-            SCAN_RUNNER_IMPORT_ERROR = exc2
-            continue
+    SCAN_RUNNER_IMPORT_ERROR = exc
 
 # --- CONFIG ---
 BG = "#000000"
